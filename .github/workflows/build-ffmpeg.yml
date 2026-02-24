@@ -103,8 +103,7 @@ jobs:
       fail-fast: false
       matrix:
         build: [ "manylinux_", "musllinux_" ]
-        # arch: [ "loongarch64", "ppc64le", "riscv64", "s390x" ]
-        arch: [ "ppc64le" ]
+        arch: [ "loongarch64", "ppc64le", "riscv64", "s390x" ]
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-python@v6
@@ -121,11 +120,15 @@ jobs:
             CC="/opt/clang/bin/clang"
             CXX="/opt/clang/bin/clang++"
             LDFLAGS="-fuse-ld=lld"
-          CIBW_ENVIRONMENT_PASS_LINUX: RUNNER_ARCH
+          CIBW_ENVIRONMENT_PASS_LINUX: RUNNER_ARCH PIP_EXTRA_INDEX_URL
           CIBW_REPAIR_WHEEL_COMMAND_LINUX: LD_LIBRARY_PATH=/tmp/vendor/lib:$LD_LIBRARY_PATH auditwheel repair --exclude libmvec.so.1 --exclude libmvec-2.so --exclude libmvec.so --exclude libmvec -w {dest_dir} {wheel}
           CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: delvewheel repair --add-path C:\cibw\vendor\bin -w {dest_dir} {wheel}
           CIBW_TEST_COMMAND: python -c "import dummy"
         run: |
+          if [ "${{ matrix.arch }}" = "loongarch64" ]; then
+            export PIP_EXTRA_INDEX_URL="https://gitlab.com/api/v4/projects/65746188/packages/pypi/simple"
+          fi
+          sed -i 's@use_cuda = plat in {"Linux", "Windows"} .*@use_cuda = False@g' scripts/build-ffmpeg.py
           pip install cibuildwheel delvewheel
           cibuildwheel --output-dir output
           rm -f output/*.whl
